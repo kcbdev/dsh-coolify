@@ -1,0 +1,15 @@
+# Docker ignore file for dsh-coolify
+# Ignore local configuration and data directories
+/data
+/workspace
+/node_modules
+/.pnpm
+/.npm
+/.yarn
+/.pnpm-lockfile
+Dockerfile
+start.mjs
+README.md
+.env*
+# Coolify specific
+.coolify

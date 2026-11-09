@@ -1,0 +1,12 @@
+{
+  "name": "dsh-coolify",
+  "version": "1.0.0",
+  "description": "DeepSeek Harness Coolify deployment",
+  "private": true,
+  "scripts": {
+    "start": "node start.mjs"
+  },
+  "dependencies": {
+    "@deepseek-ai/dsh": "0.1.2-rc.1"
+  }
+}

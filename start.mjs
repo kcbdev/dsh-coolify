@@ -2,14 +2,18 @@
 /**
  * start.mjs - DSH Web launcher for Coolify.
  *
- * Constraints discovered in @deepseek-ai/dsh 0.1.2-rc.1:
- *   - The webserver's `host` schema accepts ONLY "127.0.0.1" or "0.0.0.0".
- *   - The `dsh web` launcher rejects "--host 0.0.0.0" for safety.
- *   => DSH must bind loopback (127.0.0.1:3080). The Dockerfile runs `socat`
- *      to expose 0.0.0.0:3000 -> 127.0.0.1:3080 so Traefik can reach it.
+ * `--host` accepts one concrete local IPv4/IPv6 literal only; wildcard (0.0.0.0)
+ * hosts are rejected by design ("would expose remote code execution to the
+ * network"). DSH therefore binds loopback (127.0.0.1:3080) and `socat` exposes
+ * 0.0.0.0:3000 -> 127.0.0.1:3080 at L4, preserving Host / X-Forwarded-* for
+ * DSH's browser-trust fence.
  *
- * Supported `dsh web` flags: --host, --port, --trusted-host, --no-open.
- * (There is no --public-url flag.)
+ * Flags used: --host, --port, --public-url, --trusted-host, --no-open.
+ * (--public-url exists since 0.2.x; it advertises the printed/opened URL and
+ * grants no trust, which is why --trusted-host is still required.)
+ *
+ * The settings UI (Models/General/Plugins) requires a non-loopback page to be
+ * accepted by the host; 0.1.2-rc.1 did not allow that, removed in 0.2.x.
  */
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
@@ -17,6 +21,7 @@ import process from "node:process";
 
 const DSH_HOST = "127.0.0.1";
 const DSH_PORT = 3080;
+const DSH_PUBLIC_URL = (process.env.DSH_PUBLIC_URL || "https://dsh.kcb.ma/").trim();
 const TRUSTED_HOST = process.env.DSH_PUBLIC_HOST || "dsh.kcb.ma";
 
 // Resolve the dsh CLI entry so we never depend on PATH or the current working
@@ -34,11 +39,12 @@ const args = [
   "web",
   "--host", DSH_HOST,
   "--port", String(DSH_PORT),
+  "--public-url", DSH_PUBLIC_URL,
   "--trusted-host", TRUSTED_HOST,
   "--no-open",
 ];
 
-console.log(`[dsh] launching: bin=${dshBin} host=${DSH_HOST} port=${DSH_PORT} trusted=${TRUSTED_HOST}`);
+console.log(`[dsh] launching: bin=${dshBin} host=${DSH_HOST} port=${DSH_PORT} public=${DSH_PUBLIC_URL} trusted=${TRUSTED_HOST}`);
 
 const child = spawn(process.execPath, args, {
   stdio: "inherit",

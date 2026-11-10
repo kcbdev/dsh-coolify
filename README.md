@@ -35,15 +35,15 @@ docker run -d \
 > (the launcher rejects it, and the host schema allows only `127.0.0.1`/`0.0.0.0`),
 > so the forwarder is what makes the service reachable from Traefik.
 
-### Runtime Constraints (learned the hard way)
-1. `--host` may only be `127.0.0.1` or `0.0.0.0`; the launcher rejects `0.0.0.0`.
-   Never pass a container IP — it fails schema validation and crash-loops.
-2. The shipped `web` profile defaults to `patchReload: "live"`, which boots the
-   Cordis HMR watcher and aborts boot in a container
-   (`dsh: user patch-layer watching requires the Cordis HMR service`).
-   `entrypoint.sh` seeds `<DSH_HOME>/profiles/web/package.json` with
-   `patchReload: "startup"`.
-3. There is no `--public-url` flag. Use `--trusted-host <domain>` for the fence.
+# Runtime Constraints
+1. `--host` accepts one concrete local IPv4/IPv6 literal only; wildcards
+   (`0.0.0.0`) are rejected by design. Bind `127.0.0.1:3080` and expose it with
+   the in-container `socat` forwarder on `0.0.0.0:3000` (Coolify `ports_exposes`).
+2. Since `0.2.x`, the settings UI (Models/General/Plugins) works over a public
+   URL. On `0.1.2-rc.1` it was gated to loopback pages and the Models page
+   failed with "settings are unavailable in this browser".
+3. Container cwd is `/workspace` (dsh-base derives the agent sandbox root from
+   `process.cwd()`).
 
 ### Coolify Deployment Configuration
 - **Git repository**: kcbdev/dsh-coolify

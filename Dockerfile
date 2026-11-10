@@ -18,9 +18,8 @@ RUN chmod +x entrypoint.sh
 # ---------- Production ----------
 FROM node:24-alpine
 
-# socat is a tiny L4 forwarder: DSH only permits binding 127.0.0.1 / 0.0.0.0
-# (and the launcher rejects 0.0.0.0), so we bind DSH to loopback and expose
-# it to Traefik through socat on 0.0.0.0:3000.
+# socat is a tiny L4 forwarder: DSH rejects wildcard (0.0.0.0) binds by design,
+# so we bind DSH to loopback and expose it to Traefik through socat on 0.0.0.0:3000.
 RUN apk add --no-cache socat
 
 WORKDIR /app

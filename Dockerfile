@@ -12,6 +12,8 @@ RUN npm install --no-audit --no-fund
 
 # Application source
 COPY start.mjs ./
+COPY entrypoint.sh ./
+RUN chmod +x entrypoint.sh
 
 # ---------- Production ----------
 FROM node:24-alpine
@@ -30,6 +32,7 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/start.mjs ./
+COPY --from=builder /app/entrypoint.sh ./
 
 # DSH configuration
 # PORT is the *exposed* port that Coolify/Traefik targets (ports_exposes=3000).
@@ -49,7 +52,7 @@ USER appuser
 
 EXPOSE 3000
 
-# socat forwards 0.0.0.0:${PORT} -> 127.0.0.1:3080 (DSH), preserving all
-# headers (Host / X-Forwarded-*) for DSH's browser-trust fence.
-# start.mjs launches `dsh web` on loopback with the public host trusted.
-CMD socat TCP-LISTEN:${PORT},fork,reuseaddr TCP:127.0.0.1:3080 & exec node start.mjs
+# entrypoint.sh runs the socat forwarder (0.0.0.0:${PORT} -> 127.0.0.1:3080,
+# L4 so Host / X-Forwarded-* reach DSH's trust fence) and then starts `dsh web`
+# on loopback with the public host trusted.
+CMD ["sh", "/app/entrypoint.sh"]

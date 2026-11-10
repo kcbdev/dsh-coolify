@@ -1,46 +1,48 @@
+# syntax=docker/dockerfile:1
+
+# ---------- Builder ----------
 FROM node:24-alpine AS builder
 
 WORKDIR /app
 
-# Install dependencies first for layer caching
-COPY package.json package-lock.json ./
-RUN npm ci
+# package.json pins @deepseek-ai/dsh, so a single install is enough.
+# No package-lock.json is committed, so use `npm install` (not `npm ci`).
+COPY package.json ./
+RUN npm install --no-audit --no-fund
 
-# Copy source code
+# Application source
 COPY start.mjs ./
 
-# Build stage: install DSH and prepare production
-RUN npm i @deepseek-ai/dsh@0.1.2-rc.1
-
-# Production stage
+# ---------- Production ----------
 FROM node:24-alpine
 
 WORKDIR /app
 
-# Create non-root application user
+# Non-root application user
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-# Copy built artifacts from builder
-COPY --from=builder /app/node_modules /app/node_modules
-COPY --from=builder /app/start.mjs ./
+# Copy runtime artifacts from the builder
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
-COPY --from=builder /app/.dockerignore ./.dockerignore 2>/dev/null || true
+COPY --from=builder /app/start.mjs ./
 
-# Set persistent directories
-ENV DSH_HOME=/data
-ENV DSH_TELEMETRY_DISABLED=1
-ENV NODE_ENV=production
+# DSH configuration
+# PORT must match Coolify's ports_exposes (3000).
+ENV DSH_HOME=/data \
+    DSH_TELEMETRY_DISABLED=1 \
+    NODE_ENV=production \
+    PORT=3000 \
+    DSH_PUBLIC_HOST=dsh.kcb.ma
 
-# Create persistent directories and set ownership
+# Persistent directories owned by the non-root user
 RUN mkdir -p /data /workspace && \
-    chown -R appuser:appgroup /data /workspace && \
-    # Clean npm cache and unnecessary files
+    chown -R appuser:appgroup /data /workspace /app && \
     rm -rf /root/.npm /tmp/*
 
 USER appuser
 
-# Expose internal port
-EXPOSE 3080
+EXPOSE 3000
 
-# Default command starts DSH Web
+# start.mjs discovers the container IP (DSH rejects 0.0.0.0) and launches
+# `dsh web` bound to it, trusting the public host, without opening a browser.
 CMD ["node", "start.mjs"]

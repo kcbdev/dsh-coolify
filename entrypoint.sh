@@ -41,7 +41,16 @@ JSON
 echo "[entrypoint] socat TCP-LISTEN:${PORT} -> 127.0.0.1:3080"
 socat "TCP-LISTEN:${PORT},fork,reuseaddr" TCP:127.0.0.1:3080 &
 
-node start.mjs
+# dsh-base derives the agent sandbox root from process.cwd()
+# (`workspaceRoot: !!js process.cwd()`), so start from the persisted workspace
+# volume instead of /app. Otherwise `workspace-write` would treat the read-only
+# application code as the writable workspace and ignore /workspace entirely.
+WORKSPACE="${DSH_WORKSPACE:-/workspace}"
+mkdir -p "${WORKSPACE}" 2>/dev/null || true
+cd "${WORKSPACE}" 2>/dev/null || cd /app
+echo "[entrypoint] cwd=$(pwd) DSH_HOME=${DSH_HOME} DSH_PERMISSION_MODE=${DSH_PERMISSION_MODE:-workspace-write}"
+
+node /app/start.mjs
 CODE=$?
 
 echo "[entrypoint] dsh exited with code ${CODE}"

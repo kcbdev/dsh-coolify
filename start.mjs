@@ -19,14 +19,14 @@ const DSH_HOST = "127.0.0.1";
 const DSH_PORT = 3080;
 const TRUSTED_HOST = process.env.DSH_PUBLIC_HOST || "dsh.kcb.ma";
 
-// Resolve the dsh CLI entry so we never depend on PATH (node_modules/.bin is
-// not on PATH when Coolify runs `node start.mjs`).
+// Resolve the dsh CLI entry so we never depend on PATH or the current working
+// directory (the container starts in /workspace, the app lives in /app).
 const require = createRequire(import.meta.url);
 let dshBin;
 try {
   dshBin = require.resolve("@deepseek-ai/dsh/lib/bin.js");
 } catch {
-  dshBin = "node_modules/@deepseek-ai/dsh/lib/bin.js";
+  dshBin = "/app/node_modules/@deepseek-ai/dsh/lib/bin.js";
 }
 
 const args = [

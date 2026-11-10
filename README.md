@@ -57,12 +57,24 @@ docker run -d \
   live inside the container, so a redeploy resets DSH state
 
 ### Environment Variables
-| Variable | Default | Description |
+
+**No Coolify environment variables are required.** The image bakes in everything
+it needs (`ENV` in the Dockerfile), so the app is self-contained and no secrets
+live in Coolify. These are the effective defaults:
+
+| Variable | Default (from image) | Description |
 |---|---|---|
 | `NODE_ENV` | production | Application mode |
-| `DSH_HOME` | /data | Harness home directory |
+| `DSH_HOME` | /data | Harness home (profile, settings, sessions, credentials) |
 | `DSH_TELEMETRY_DISABLED` | 1 | Disable telemetry (any non-empty value) |
-| `DSH_PERMISSION_MODE` | workspace-write | Permission/sandbox mode |
+| `DSH_PERMISSION_MODE` | workspace-write | Sandbox policy: `read-only`, `workspace-write`, `danger-full-access` |
+| `PORT` | 3000 | Forwarded port; **must equal Coolify `ports_exposes`** |
+| `DSH_PUBLIC_HOST` | dsh.kcb.ma | Value passed to `--trusted-host`; only change if the domain changes |
+| `DSH_WORKSPACE` | /workspace | Agent working directory (sandbox root = `process.cwd()`) |
+
+Only set these in Coolify to **override** a default — e.g. `DSH_PERMISSION_MODE=read-only`
+to harden the sandbox. Provider/model credentials are **not** environment
+variables: they are configured in the DSH Web UI and stored under `/data`.
 
 ### DNS and Cloudflare Access Configuration
 1. **DNS**: Ensure `kcb.ma` is managed by Cloudflare

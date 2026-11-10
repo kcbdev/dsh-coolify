@@ -2,52 +2,22 @@
 /**
  * start.mjs - DSH Web launcher for Coolify.
  *
- * DSH refuses to bind 0.0.0.0 for safety, so we bind to the container's
- * reachable IPv4 address (which Traefik can reach on the Docker network).
- * The public host is added to the /api browser-trust fence, and the browser
- * auto-open is disabled for a headless deployment.
+ * Constraints discovered in @deepseek-ai/dsh 0.1.2-rc.1:
+ *   - The webserver's `host` schema accepts ONLY "127.0.0.1" or "0.0.0.0".
+ *   - The `dsh web` launcher rejects "--host 0.0.0.0" for safety.
+ *   => DSH must bind loopback (127.0.0.1:3080). The Dockerfile runs `socat`
+ *      to expose 0.0.0.0:3000 -> 127.0.0.1:3080 so Traefik can reach it.
  *
- * Supported `dsh web` flags (verified against @deepseek-ai/dsh 0.1.2-rc.1):
- *   --host <host>  --port <port>  --trusted-host <authority>  --no-open
- * (There is no `--public-url` flag.)
+ * Supported `dsh web` flags: --host, --port, --trusted-host, --no-open.
+ * (There is no --public-url flag.)
  */
 import { spawn } from "node:child_process";
 import { createRequire } from "node:module";
-import { networkInterfaces } from "node:os";
 import process from "node:process";
 
-const PORT = Number(process.env.PORT || 3000);
+const DSH_HOST = "127.0.0.1";
+const DSH_PORT = 3080;
 const TRUSTED_HOST = process.env.DSH_PUBLIC_HOST || "dsh.kcb.ma";
-
-/** Pick the container's reachable IPv4 (skip loopback / docker0). */
-function pickContainerIp() {
-  const nets = networkInterfaces();
-  const skip = new Set(["lo", "docker0"]);
-
-  // Preferred pass: non-internal IPv4 on a usable interface.
-  for (const [name, addrs] of Object.entries(nets)) {
-    if (!addrs || skip.has(name.toLowerCase())) continue;
-    for (const a of addrs) {
-      if (a && a.family === "IPv4" && !a.internal && a.address !== "127.0.0.1") {
-        return a.address;
-      }
-    }
-  }
-
-  // Fallback pass: any non-internal IPv4.
-  for (const addrs of Object.values(nets)) {
-    if (!addrs) continue;
-    for (const a of addrs) {
-      if (a && a.family === "IPv4" && !a.internal && a.address !== "127.0.0.1") {
-        return a.address;
-      }
-    }
-  }
-
-  return "127.0.0.1";
-}
-
-const HOST = process.env.DSH_BIND_HOST || pickContainerIp();
 
 // Resolve the dsh CLI entry so we never depend on PATH (node_modules/.bin is
 // not on PATH when Coolify runs `node start.mjs`).
@@ -62,13 +32,13 @@ try {
 const args = [
   dshBin,
   "web",
-  "--host", HOST,
-  "--port", String(PORT),
+  "--host", DSH_HOST,
+  "--port", String(DSH_PORT),
   "--trusted-host", TRUSTED_HOST,
   "--no-open",
 ];
 
-console.log(`[dsh] launching: bin=${dshBin} host=${HOST} port=${PORT} trusted=${TRUSTED_HOST}`);
+console.log(`[dsh] launching: bin=${dshBin} host=${DSH_HOST} port=${DSH_PORT} trusted=${TRUSTED_HOST}`);
 
 const child = spawn(process.execPath, args, {
   stdio: "inherit",

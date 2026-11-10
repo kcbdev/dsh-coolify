@@ -45,7 +45,4 @@ node start.mjs
 CODE=$?
 
 echo "[entrypoint] dsh exited with code ${CODE}"
-# Keep the container alive after an unexpected exit so the platform can collect
-# the stdout/stderr above instead of showing an empty crash-loop.
-sleep 3600
 exit "${CODE}"
